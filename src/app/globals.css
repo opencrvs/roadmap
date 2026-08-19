@@ -1,0 +1,203 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* OpenCRVS roadmap-specific tokens */
+  --color-track: var(--track);
+  --color-today-line: var(--today-line);
+
+  --color-status-good-bg: var(--status-good-bg);
+  --color-status-good-fg: var(--status-good-fg);
+  --color-status-good-border: var(--status-good-border);
+  --color-status-due-soon-bg: var(--status-due-soon-bg);
+  --color-status-due-soon-fg: var(--status-due-soon-fg);
+  --color-status-due-soon-border: var(--status-due-soon-border);
+  --color-status-overdue-bg: var(--status-overdue-bg);
+  --color-status-overdue-fg: var(--status-overdue-fg);
+  --color-status-overdue-border: var(--status-overdue-border);
+  --color-status-info-bg: var(--status-info-bg);
+  --color-status-info-fg: var(--status-info-fg);
+  --color-status-info-border: var(--status-info-border);
+}
+
+:root {
+  /* OpenCRVS core neutrals */
+  --background: #f8f8f8;
+  --foreground: #222222;
+  --card: #ffffff;
+  --card-foreground: #222222;
+  --popover: #ffffff;
+  --popover-foreground: #222222;
+
+  /* OpenCRVS primary blue */
+  --primary: #1447b9;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f2f2f2;
+  --secondary-foreground: #222222;
+  --muted: #f2f2f2;
+  --muted-foreground: #6b6b6b;
+  --accent: #e7f0fc;
+  --accent-foreground: #0d3691;
+
+  --destructive: #d53f3f;
+  --destructive-foreground: #ffffff;
+
+  --border: #e1e1e1;
+  --input: #e1e1e1;
+  --ring: #1447b9;
+
+  --chart-1: #1447b9;
+  --chart-2: #39ab7f;
+  --chart-3: #e99b63;
+  --chart-4: #785ae6;
+  --chart-5: #4a8ad7;
+
+  --radius: 0.5rem;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #222222;
+  --sidebar-primary: #1447b9;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e7f0fc;
+  --sidebar-accent-foreground: #0d3691;
+  --sidebar-border: #e1e1e1;
+  --sidebar-ring: #1447b9;
+
+  /* Roadmap timeline */
+  --track: #e1e1e1;
+  --today-line: #d53f3f;
+
+  --status-good-bg: #effaf5;
+  --status-good-fg: #1d7e5e;
+  --status-good-border: #b3e7ce;
+
+  --status-due-soon-bg: #fef9ee;
+  --status-due-soon-fg: #b65618;
+  --status-due-soon-border: #f9dfaf;
+
+  --status-overdue-bg: #fdf3f3;
+  --status-overdue-fg: #b02525;
+  --status-overdue-border: #fce4e4;
+
+  --status-info-bg: #e7f0fc;
+  --status-info-fg: #0d3691;
+  --status-info-border: #c7ddff;
+}
+
+.dark {
+  --background: #101319;
+  --foreground: #f2f2f2;
+  --card: #171b24;
+  --card-foreground: #f2f2f2;
+  --popover: #171b24;
+  --popover-foreground: #f2f2f2;
+
+  --primary: #4c86ff;
+  --primary-foreground: #0e225d;
+
+  --secondary: #1e2330;
+  --secondary-foreground: #f2f2f2;
+  --muted: #1a1e29;
+  --muted-foreground: #b5b5b5;
+  --accent: #16233d;
+  --accent-foreground: #c7ddff;
+
+  --destructive: #e97a7a;
+  --destructive-foreground: #2a0a0a;
+
+  --border: #2a3040;
+  --input: #2a3040;
+  --ring: #4c86ff;
+
+  --chart-1: #4c86ff;
+  --chart-2: #4fc79a;
+  --chart-3: #eab182;
+  --chart-4: #9a82ee;
+  --chart-5: #7ba7e0;
+
+  --sidebar: #171b24;
+  --sidebar-foreground: #f2f2f2;
+  --sidebar-primary: #4c86ff;
+  --sidebar-primary-foreground: #0e225d;
+  --sidebar-accent: #16233d;
+  --sidebar-accent-foreground: #c7ddff;
+  --sidebar-border: #2a3040;
+  --sidebar-ring: #4c86ff;
+
+  --track: #2a3040;
+  --today-line: #e97a7a;
+
+  --status-good-bg: #15503f;
+  --status-good-fg: #b3e7ce;
+  --status-good-border: #1d7e5e;
+
+  --status-due-soon-bg: #753919;
+  --status-due-soon-fg: #f9dfaf;
+  --status-due-soon-border: #b65618;
+
+  --status-overdue-bg: #792323;
+  --status-overdue-fg: #fce4e4;
+  --status-overdue-border: #b02525;
+
+  --status-info-bg: #16233d;
+  --status-info-fg: #c7ddff;
+  --status-info-border: #0d3691;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
