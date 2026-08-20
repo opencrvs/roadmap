@@ -39,11 +39,11 @@ export default async function Home() {
             priority
           />
           <span className="text-muted-foreground text-lg font-medium">
-            Core Roadmap
+            OpenCRVS Core Roadmap
           </span>
         </div>
         <p className="text-muted-foreground max-w-2xl text-sm">
-          A live view of every open milestone on{" "}
+          A live view of every open milestone (future release) on{" "}
           <a
             href={`https://github.com/${owner}/${repo}`}
             target="_blank"
