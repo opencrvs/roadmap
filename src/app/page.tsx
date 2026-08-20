@@ -1,4 +1,5 @@
-import { AlertTriangleIcon, GitBranchIcon } from "lucide-react"
+import Image from "next/image"
+import { AlertTriangleIcon } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Roadmap } from "@/components/roadmap/roadmap"
 import { GitHubApiError, getOpenMilestones, getRepoInfo } from "@/lib/github"
@@ -29,12 +30,14 @@ export default async function Home() {
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
-          <span className="bg-primary flex size-7 items-center justify-center rounded-md text-white">
-            <GitBranchIcon className="size-4" />
-          </span>
-          <span className="text-primary text-lg font-bold tracking-tight">
-            OpenCRVS
-          </span>
+          <Image
+            src="/opencrvs-logo.png"
+            alt="OpenCRVS"
+            width={28}
+            height={28}
+            className="size-7"
+            priority
+          />
           <span className="text-muted-foreground text-lg font-medium">
             Core Roadmap
           </span>
