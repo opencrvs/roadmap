@@ -4,6 +4,13 @@ import type { IssueSummary, Milestone } from "./types"
 const OWNER = process.env.GITHUB_REPO_OWNER || "opencrvs"
 const REPO = process.env.GITHUB_REPO_NAME || "opencrvs-core"
 
+const PROJECT_OWNER = process.env.GITHUB_PROJECT_OWNER || OWNER
+const PROJECT_NUMBER = Number(process.env.GITHUB_PROJECT_NUMBER) || 4
+const COMPLETED_STATUS_NAME = "Completed"
+
+/** Matches release version titles like "2.1", "1.9.18", or "v1.6.2". */
+const RELEASE_VERSION_PATTERN = /^v?\d+(\.\d+)+$/
+
 // Revalidate cached GitHub responses periodically instead of on every
 // request, since we're often running against an unauthenticated or
 // low-rate-limit token.
@@ -58,6 +65,80 @@ export function getRepoInfo() {
   return { owner: OWNER, repo: REPO }
 }
 
+interface ProjectStatusQueryResult {
+  organization: {
+    projectV2: {
+      items: {
+        nodes: {
+          content: {
+            number?: number
+            repository?: { nameWithOwner: string }
+          } | null
+          fieldValueByName: { name: string } | null
+        }[]
+      }
+    } | null
+  } | null
+}
+
+const PROJECT_STATUS_QUERY = `
+  query paginate($cursor: String, $login: String!, $number: Int!) {
+    organization(login: $login) {
+      projectV2(number: $number) {
+        items(first: 100, after: $cursor) {
+          nodes {
+            content {
+              ... on Issue {
+                number
+                repository { nameWithOwner }
+              }
+            }
+            fieldValueByName(name: "Status") {
+              ... on ProjectV2ItemFieldSingleSelectValue { name }
+            }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }
+  }
+`
+
+/**
+ * Issue numbers whose Status field on the "OpenCRVS Core" project board
+ * (opencrvs/4) is set to "Completed". A work item can carry this status
+ * while the underlying GitHub issue is still open, so it's treated as an
+ * additional completion signal alongside the issue's closed state.
+ */
+async function getCompletedIssueNumbers(): Promise<Set<number>> {
+  const octokit = getClient()
+  const completed = new Set<number>()
+
+  try {
+    const result = await octokit.graphql.paginate<ProjectStatusQueryResult>(
+      PROJECT_STATUS_QUERY,
+      { login: PROJECT_OWNER, number: PROJECT_NUMBER }
+    )
+
+    for (const item of result.organization?.projectV2?.items.nodes ?? []) {
+      if (
+        item.content?.repository?.nameWithOwner === `${OWNER}/${REPO}` &&
+        typeof item.content.number === "number" &&
+        item.fieldValueByName?.name === COMPLETED_STATUS_NAME
+      ) {
+        completed.add(item.content.number)
+      }
+    }
+  } catch (error) {
+    console.error(
+      "Failed to load project board status field; falling back to issue state only.",
+      error
+    )
+  }
+
+  return completed
+}
+
 export async function getOpenMilestones(): Promise<Milestone[]> {
   const octokit = getClient()
 
@@ -74,16 +155,33 @@ export async function getOpenMilestones(): Promise<Milestone[]> {
       }
     )
 
-    return milestones.map(toMilestone)
+    const openMilestones = milestones.filter((m) =>
+      RELEASE_VERSION_PATTERN.test(m.title)
+    )
+    const completedIssueNumbers = await getCompletedIssueNumbers()
+
+    return await Promise.all(
+      openMilestones.map(async (m) => {
+        const issues = await getMilestoneIssues(m.number, completedIssueNumbers)
+        const closedIssues = issues.filter((issue) => issue.state === "closed").length
+        return toMilestone({
+          ...m,
+          open_issues: issues.length - closedIssues,
+          closed_issues: closedIssues
+        })
+      })
+    )
   } catch (error) {
     throw toGitHubApiError(error)
   }
 }
 
 export async function getMilestoneIssues(
-  milestoneNumber: number
+  milestoneNumber: number,
+  completedIssueNumbers?: Set<number>
 ): Promise<IssueSummary[]> {
   const octokit = getClient()
+  const completed = completedIssueNumbers ?? (await getCompletedIssueNumbers())
 
   try {
     const issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
@@ -100,7 +198,10 @@ export async function getMilestoneIssues(
         id: issue.id,
         number: issue.number,
         title: issue.title,
-        state: issue.state === "closed" ? ("closed" as const) : ("open" as const),
+        state:
+          issue.state === "closed" || completed.has(issue.number)
+            ? ("closed" as const)
+            : ("open" as const),
         htmlUrl: issue.html_url,
         labels: (issue.labels ?? []).map((label) =>
           typeof label === "string"

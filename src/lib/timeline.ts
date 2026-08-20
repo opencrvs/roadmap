@@ -132,12 +132,26 @@ export function computeMilestoneGeometry(
   }
 }
 
-/** Sort dated milestones chronologically first, undated ones after by age. */
+/** Parses a "2.1" / "1.9.18" / "v1.6.2" style title into numeric segments. */
+function parseVersion(title: string): number[] {
+  return title
+    .replace(/^v/, "")
+    .split(".")
+    .map((segment) => Number(segment))
+}
+
+function compareVersionsDescending(a: string, b: string): number {
+  const aSegments = parseVersion(a)
+  const bSegments = parseVersion(b)
+  const length = Math.max(aSegments.length, bSegments.length)
+  for (let i = 0; i < length; i++) {
+    const diff = (bSegments[i] ?? 0) - (aSegments[i] ?? 0)
+    if (diff !== 0) return diff
+  }
+  return 0
+}
+
+/** Sort release-version milestones highest to lowest. */
 export function sortMilestonesForRoadmap(milestones: Milestone[]): Milestone[] {
-  return [...milestones].sort((a, b) => {
-    const aKey = a.dueOn ? new Date(a.dueOn).getTime() : Infinity
-    const bKey = b.dueOn ? new Date(b.dueOn).getTime() : Infinity
-    if (aKey !== bKey) return aKey - bKey
-    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  })
+  return [...milestones].sort((a, b) => compareVersionsDescending(a.title, b.title))
 }
