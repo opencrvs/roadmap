@@ -2,8 +2,9 @@ import Image from "next/image"
 import { AlertTriangleIcon } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Roadmap } from "@/components/roadmap/roadmap"
-import { GitHubApiError, getOpenMilestones, getRepoInfo } from "@/lib/github"
-import type { Milestone } from "@/lib/types"
+import { GitHubApiError, getRepoInfo, getRoadmapData } from "@/lib/github"
+import { splitReleases } from "@/lib/releases"
+import type { Milestone, ProjectInfo } from "@/lib/types"
 
 export const revalidate = 300
 
@@ -11,9 +12,12 @@ export default async function Home() {
   const { owner, repo } = getRepoInfo()
 
   let milestones: Milestone[]
+  let project: ProjectInfo = { title: null, url: null, statusOptions: [], error: null }
   let loadError: string | null = null
   try {
-    milestones = await getOpenMilestones()
+    const data = await getRoadmapData()
+    milestones = data.milestones
+    project = data.project
   } catch (error) {
     loadError =
       error instanceof GitHubApiError
@@ -25,6 +29,7 @@ export default async function Home() {
   const now = new Date()
   const totalOpen = milestones.reduce((sum, m) => sum + m.openIssues, 0)
   const totalClosed = milestones.reduce((sum, m) => sum + m.closedIssues, 0)
+  const { major, hotfix } = splitReleases(milestones)
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
@@ -75,11 +80,47 @@ export default async function Home() {
             <StatTile label="Closed issues" value={totalClosed} />
           </dl>
 
-          <Card className="py-4 sm:py-6">
-            <CardContent className="overflow-x-auto px-4 sm:px-6">
-              <Roadmap milestones={milestones} now={now} />
-            </CardContent>
-          </Card>
+          <section aria-labelledby="major-releases" className="flex flex-col gap-3">
+            <SectionHeading
+              id="major-releases"
+              title="Major releases"
+              count={major.length}
+              description="Feature releases (X.Y). Expand a release to see each task and its status on the project board."
+            />
+            <Card className="py-4 sm:py-6">
+              <CardContent className="overflow-x-auto px-4 sm:px-6">
+                <Roadmap
+                  milestones={major}
+                  now={now}
+                  statusOptions={project.statusOptions}
+                  statusError={project.error}
+                  emptyMessage="There are no open major release milestones."
+                />
+              </CardContent>
+            </Card>
+          </section>
+
+          <section aria-labelledby="hotfix-releases" className="flex flex-col gap-3">
+            <SectionHeading
+              id="hotfix-releases"
+              title="Hotfix and maintenance releases"
+              count={hotfix.length}
+              description="Patch releases (X.Y.Z) for versions already in use."
+            />
+            <Card className="py-3 sm:py-4">
+              <CardContent className="overflow-x-auto px-4 sm:px-6">
+                <Roadmap
+                  milestones={hotfix}
+                  now={now}
+                  statusOptions={project.statusOptions}
+                  statusError={project.error}
+                  compact
+                  showLegend={false}
+                  emptyMessage="There are no open hotfix or maintenance release milestones."
+                />
+              </CardContent>
+            </Card>
+          </section>
         </>
       )}
     </div>
@@ -93,6 +134,28 @@ function StatTile({ label, value }: { label: string; value: number }) {
       <dd className="text-foreground mt-1 text-2xl font-semibold tabular-nums">
         {value}
       </dd>
+    </div>
+  )
+}
+
+function SectionHeading({
+  id,
+  title,
+  count,
+  description
+}: {
+  id: string
+  title: string
+  count: number
+  description: string
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <h2 id={id} className="text-foreground flex items-baseline gap-2 text-base font-semibold">
+        {title}
+        <span className="text-muted-foreground text-sm font-normal tabular-nums">{count}</span>
+      </h2>
+      <p className="text-muted-foreground text-sm">{description}</p>
     </div>
   )
 }

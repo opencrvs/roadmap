@@ -36,11 +36,14 @@ export function TodayLine({ pct, className }: { pct: number; className?: string 
 
 export function MilestoneBar({
   geometry,
-  createdAt
+  createdAt,
+  compact = false
 }: {
   geometry: MilestoneGeometry
   createdAt: string
+  compact?: boolean
 }) {
+  const barHeight = compact ? "h-1.5" : "h-2.5"
   const {
     startPct,
     scheduledEndPct,
@@ -60,15 +63,15 @@ export function MilestoneBar({
     : `${formatDate(createdAt)} → ongoing (no due date)`
 
   return (
-    <div className="relative h-7 w-full" title={`${rangeLabel} · ${progressPct}% of issues closed`}>
+    <div className={`relative w-full ${compact ? "h-5" : "h-7"}`} title={`${rangeLabel} · ${progressPct}% of issues closed`}>
       {/* track (committed span) */}
       <div
-        className="bg-track absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full"
+        className={`bg-track absolute top-1/2 ${barHeight} -translate-y-1/2 rounded-full`}
         style={{ left: `${startPct}%`, width: `${committedWidth}%` }}
       />
       {/* progress fill */}
       <div
-        className="bg-primary absolute top-1/2 h-2.5 -translate-y-1/2 rounded-l-full"
+        className={`bg-primary absolute top-1/2 ${barHeight} -translate-y-1/2 rounded-l-full`}
         style={{
           left: `${startPct}%`,
           width: `${filledWidth}%`,
@@ -79,7 +82,7 @@ export function MilestoneBar({
       {/* overrun hatch (overdue, still open) */}
       {overrunEndPct !== null && overrunEndPct > scheduledEndPct ? (
         <div
-          className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-r-full"
+          className={`absolute top-1/2 ${barHeight} -translate-y-1/2 rounded-r-full`}
           style={{
             left: `${scheduledEndPct}%`,
             width: `${overrunEndPct - scheduledEndPct}%`,
@@ -90,7 +93,7 @@ export function MilestoneBar({
       {/* open-ended tail (no due date set) */}
       {tailEndPct !== null && tailEndPct > scheduledEndPct ? (
         <div
-          className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-r-full opacity-60"
+          className={`absolute top-1/2 ${barHeight} -translate-y-1/2 rounded-r-full opacity-60`}
           style={{
             left: `${scheduledEndPct}%`,
             width: `${tailEndPct - scheduledEndPct}%`,
