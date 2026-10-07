@@ -92,7 +92,6 @@ export default async function Home() {
                 <Roadmap
                   milestones={major}
                   now={now}
-                  statusOptions={project.statusOptions}
                   statusError={project.error}
                   emptyMessage="There are no open major release milestones."
                 />
@@ -112,7 +111,6 @@ export default async function Home() {
                 <Roadmap
                   milestones={hotfix}
                   now={now}
-                  statusOptions={project.statusOptions}
                   statusError={project.error}
                   compact
                   showLegend={false}

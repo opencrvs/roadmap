@@ -2,8 +2,6 @@ import type { CSSProperties } from "react"
 
 const OVERRUN_HATCH =
   "repeating-linear-gradient(135deg, var(--status-overdue-fg) 0 3px, transparent 3px 7px)"
-const TAIL_HATCH =
-  "repeating-linear-gradient(135deg, var(--muted-foreground) 0 3px, transparent 3px 7px)"
 
 export function Legend() {
   return (
@@ -11,7 +9,10 @@ export function Legend() {
       <LegendSwatch className="bg-primary" label="Issues closed" />
       <LegendSwatch className="bg-track" label="Issues open" />
       <LegendSwatch style={{ backgroundImage: OVERRUN_HATCH }} label="Past due, still open" />
-      <LegendSwatch style={{ backgroundImage: TAIL_HATCH }} label="No due date set" />
+      <span className="flex items-center gap-1.5">
+        <span className="border-muted-foreground inline-block size-2.5 rotate-45 border" />
+        Target date (discovery / planning)
+      </span>
       <span className="flex items-center gap-1.5">
         <span className="bg-today-line inline-block h-3.5 w-px" />
         Today

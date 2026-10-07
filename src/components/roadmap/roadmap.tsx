@@ -8,12 +8,11 @@ import {
   getTimelineRange,
   sortMilestonesForRoadmap
 } from "@/lib/timeline"
-import type { Milestone, ProjectStatusOption } from "@/lib/types"
+import type { Milestone } from "@/lib/types"
 
 export function Roadmap({
   milestones,
   now,
-  statusOptions,
   statusError,
   compact = false,
   showLegend = true,
@@ -21,7 +20,6 @@ export function Roadmap({
 }: {
   milestones: Milestone[]
   now: Date
-  statusOptions: ProjectStatusOption[]
   statusError: string | null
   compact?: boolean
   showLegend?: boolean
@@ -56,7 +54,6 @@ export function Roadmap({
             key={milestone.number}
             milestone={milestone}
             geometry={computeMilestoneGeometry(milestone, range, now)}
-            statusOptions={statusOptions}
             statusError={statusError}
             compact={compact}
           />

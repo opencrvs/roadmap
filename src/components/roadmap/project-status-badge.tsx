@@ -46,21 +46,3 @@ export function ProjectStatusBadge({
   )
 }
 
-/** Small dot used in status summaries and filter chips. */
-export function StatusDot({ color, isNoStatus }: { color: string | null; isNoStatus?: boolean }) {
-  if (isNoStatus) {
-    return (
-      <span
-        className="border-muted-foreground inline-block size-2 shrink-0 rounded-full border border-dashed"
-        aria-hidden
-      />
-    )
-  }
-  return (
-    <span
-      className="inline-block size-2 shrink-0 rounded-full"
-      style={{ backgroundColor: `var(${statusColorVar(color)}-fg)` }}
-      aria-hidden
-    />
-  )
-}

@@ -56,6 +56,8 @@ export interface IssueSummary {
   title: string
   state: IssueState
   htmlUrl: string
+  /** The org-level GitHub Issue Type (e.g. "Feature", "Bug"), if set. */
+  issueType: string | null
   labels: IssueLabel[]
   assignees: IssueAssignee[]
   updatedAt: string

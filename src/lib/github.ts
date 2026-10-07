@@ -252,6 +252,7 @@ async function listMilestoneIssues(octokit: Octokit, milestoneNumber: number): P
       title: issue.title,
       state: issue.state === "closed" ? ("closed" as const) : ("open" as const),
       htmlUrl: issue.html_url,
+      issueType: issueTypeName(issue),
       labels: (issue.labels ?? []).map((label) =>
         typeof label === "string"
           ? { name: label, color: "cecece" }
@@ -263,6 +264,12 @@ async function listMilestoneIssues(octokit: Octokit, milestoneNumber: number): P
       })),
       updatedAt: issue.updated_at
     }))
+}
+
+/** Issue Types are newer than the Octokit typings, so read the field defensively. */
+function issueTypeName(issue: object): string | null {
+  const type = (issue as { type?: { name?: string | null } | null }).type
+  return type?.name ?? null
 }
 
 function withStatus(issue: RawIssue, statuses: Map<number, ProjectStatus>): IssueSummary {

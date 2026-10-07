@@ -1,8 +1,8 @@
 import {
   AlertTriangleIcon,
-  CalendarOffIcon,
   CheckCircle2Icon,
-  ClockIcon
+  ClockIcon,
+  CompassIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { MilestoneStatus } from "@/lib/timeline"
@@ -33,9 +33,9 @@ const STATUS_CONFIG: Record<
     icon: CheckCircle2Icon,
     classes: "bg-status-good-bg text-status-good-fg border-status-good-border"
   },
-  "no-due-date": {
-    label: "No due date",
-    icon: CalendarOffIcon,
+  planning: {
+    label: "Discovery / Planning",
+    icon: CompassIcon,
     classes: "bg-status-info-bg text-status-info-fg border-status-info-border"
   }
 }
