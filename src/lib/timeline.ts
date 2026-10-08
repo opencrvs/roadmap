@@ -7,8 +7,9 @@ export type MilestoneStatus =
   | "overdue"
   | "due-soon"
   | "on-track"
-  | "no-due-date"
   | "all-closed"
+  /** No due date or no issues yet: not shown as started. */
+  | "planning"
 
 export interface TimelineRange {
   start: Date
@@ -27,9 +28,9 @@ export interface MilestoneGeometry {
   scheduledEndPct: number
   /** % where a red "running over" hatch ends, only set when overdue */
   overrunEndPct: number | null
-  /** % where a grey "no committed date" hatch ends, only set with no due date */
-  tailEndPct: number | null
   dueDate: Date | null
+  /** % across the range of the due date, if there is one */
+  duePct: number | null
   daysUntilDue: number | null
 }
 
@@ -65,6 +66,14 @@ function toPct(date: Date, range: TimelineRange): number {
   return Math.min(100, Math.max(0, (offset / span) * 100))
 }
 
+/**
+ * A milestone without a due date or without any issues hasn't really started:
+ * it's still in discovery / planning, whatever its GitHub creation date.
+ */
+export function isPlanningMilestone(milestone: Milestone): boolean {
+  return !milestone.dueOn || milestone.openIssues + milestone.closedIssues === 0
+}
+
 export function computeMilestoneGeometry(
   milestone: Milestone,
   range: TimelineRange,
@@ -86,9 +95,11 @@ export function computeMilestoneGeometry(
   let status: MilestoneStatus
   let scheduledEndDate: Date
   let overrunEndPct: number | null = null
-  let tailEndPct: number | null = null
 
-  if (due) {
+  if (!due || isPlanningMilestone(milestone)) {
+    status = "planning"
+    scheduledEndDate = due ?? now
+  } else {
     const isOverdue = due.getTime() < now.getTime() && milestone.openIssues > 0
     const isDueSoon =
       !isOverdue && (daysUntilDue ?? Infinity) <= 30 && milestone.openIssues > 0
@@ -105,12 +116,6 @@ export function computeMilestoneGeometry(
     } else {
       status = "on-track"
     }
-  } else {
-    scheduledEndDate = now
-    status = milestone.openIssues === 0 && totalIssues > 0 ? "all-closed" : "no-due-date"
-    if (status === "no-due-date") {
-      tailEndPct = toPct(range.end, range)
-    }
   }
 
   const scheduledEndPct = Math.min(
@@ -126,8 +131,8 @@ export function computeMilestoneGeometry(
     clampedStart,
     scheduledEndPct,
     overrunEndPct,
-    tailEndPct,
     dueDate: due,
+    duePct: due ? toPct(due, range) : null,
     daysUntilDue
   }
 }
@@ -140,18 +145,27 @@ function parseVersion(title: string): number[] {
     .map((segment) => Number(segment))
 }
 
-function compareVersionsDescending(a: string, b: string): number {
+function compareVersionsAscending(a: string, b: string): number {
   const aSegments = parseVersion(a)
   const bSegments = parseVersion(b)
   const length = Math.max(aSegments.length, bSegments.length)
   for (let i = 0; i < length; i++) {
-    const diff = (bSegments[i] ?? 0) - (aSegments[i] ?? 0)
+    const diff = (aSegments[i] ?? 0) - (bSegments[i] ?? 0)
     if (diff !== 0) return diff
   }
   return 0
 }
 
-/** Sort release-version milestones highest to lowest. */
+/**
+ * Sort by GitHub due date, earliest first. Milestones without a due date go
+ * last. Ties (same date, or both undated) fall back to version order.
+ */
 export function sortMilestonesForRoadmap(milestones: Milestone[]): Milestone[] {
-  return [...milestones].sort((a, b) => compareVersionsDescending(a.title, b.title))
+  const dueTime = (m: Milestone) =>
+    m.dueOn ? new Date(m.dueOn).getTime() : Number.POSITIVE_INFINITY
+  return [...milestones].sort((a, b) => {
+    const diff = dueTime(a) - dueTime(b)
+    if (diff !== 0 && !Number.isNaN(diff)) return diff
+    return compareVersionsAscending(a.title, b.title)
+  })
 }

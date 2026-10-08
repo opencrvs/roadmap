@@ -128,6 +128,16 @@
   --status-info-bg: #e7f0fc;
   --status-info-fg: #0d3691;
   --status-info-border: #c7ddff;
+
+  /* GitHub Project status colours (single-select option colours) */
+  --ps-gray-bg: #f2f2f2;   --ps-gray-fg: #4d4d4d;   --ps-gray-border: #dcdcdc;
+  --ps-blue-bg: #e7f0fc;   --ps-blue-fg: #0d3691;   --ps-blue-border: #c7ddff;
+  --ps-green-bg: #effaf5;  --ps-green-fg: #1d7e5e;  --ps-green-border: #b3e7ce;
+  --ps-yellow-bg: #fdf8e3; --ps-yellow-fg: #7f5b00; --ps-yellow-border: #f1db91;
+  --ps-orange-bg: #fef4ec; --ps-orange-fg: #b65618; --ps-orange-border: #f9d3b3;
+  --ps-red-bg: #fdf3f3;    --ps-red-fg: #b02525;    --ps-red-border: #f5c9c9;
+  --ps-pink-bg: #fdf0f6;   --ps-pink-fg: #a3215f;   --ps-pink-border: #f5c7dc;
+  --ps-purple-bg: #f4f1fd; --ps-purple-fg: #5539c0; --ps-purple-border: #d9cff8;
 }
 
 .dark {
@@ -188,6 +198,15 @@
   --status-info-bg: #16233d;
   --status-info-fg: #c7ddff;
   --status-info-border: #0d3691;
+
+  --ps-gray-bg: #1e2330;   --ps-gray-fg: #cfcfcf;   --ps-gray-border: #3a4152;
+  --ps-blue-bg: #16233d;   --ps-blue-fg: #c7ddff;   --ps-blue-border: #2b4a85;
+  --ps-green-bg: #133c30;  --ps-green-fg: #b3e7ce;  --ps-green-border: #1d7e5e;
+  --ps-yellow-bg: #3a2f10; --ps-yellow-fg: #f3dd8a; --ps-yellow-border: #7f5b00;
+  --ps-orange-bg: #3d2414; --ps-orange-fg: #f9d3b3; --ps-orange-border: #b65618;
+  --ps-red-bg: #4a1b1b;    --ps-red-fg: #fce4e4;    --ps-red-border: #b02525;
+  --ps-pink-bg: #43182c;   --ps-pink-fg: #f5c7dc;   --ps-pink-border: #a3215f;
+  --ps-purple-bg: #2a2150; --ps-purple-fg: #d9cff8; --ps-purple-border: #5539c0;
 }
 
 @layer base {

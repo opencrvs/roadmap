@@ -4,8 +4,6 @@ import { formatDate } from "@/lib/format"
 
 const OVERRUN_HATCH =
   "repeating-linear-gradient(135deg, var(--status-overdue-fg) 0 3px, transparent 3px 7px)"
-const TAIL_HATCH =
-  "repeating-linear-gradient(135deg, var(--muted-foreground) 0 3px, transparent 3px 7px)"
 
 export function MonthGridlines({
   markers
@@ -36,16 +34,35 @@ export function TodayLine({ pct, className }: { pct: number; className?: string 
 
 export function MilestoneBar({
   geometry,
-  createdAt
+  createdAt,
+  compact = false
 }: {
   geometry: MilestoneGeometry
   createdAt: string
+  compact?: boolean
 }) {
+  const barHeight = compact ? "h-1.5" : "h-2.5"
+
+  // Discovery / planning: no bar, so nothing suggests work has started.
+  // Only a hollow marker at the target date, when one is set.
+  if (geometry.status === "planning") {
+    return (
+      <div className={`relative w-full ${compact ? "h-5" : "h-7"}`}>
+        {geometry.duePct !== null && geometry.dueDate ? (
+          <div
+            className="border-muted-foreground bg-card absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border"
+            style={{ left: `${geometry.duePct}%` }}
+            title={`Target date ${formatDate(geometry.dueDate)} · in discovery / planning`}
+          />
+        ) : null}
+      </div>
+    )
+  }
+
   const {
     startPct,
     scheduledEndPct,
     overrunEndPct,
-    tailEndPct,
     progressPct,
     clampedStart,
     dueDate
@@ -55,20 +72,18 @@ export function MilestoneBar({
   const filledWidth = committedWidth * (progressPct / 100)
   const isFullyFilled = progressPct >= 100
 
-  const rangeLabel = dueDate
-    ? `${formatDate(createdAt)} → ${formatDate(dueDate)}`
-    : `${formatDate(createdAt)} → ongoing (no due date)`
+  const rangeLabel = `${formatDate(createdAt)} → ${dueDate ? formatDate(dueDate) : "no due date"}`
 
   return (
-    <div className="relative h-7 w-full" title={`${rangeLabel} · ${progressPct}% of issues closed`}>
+    <div className={`relative w-full ${compact ? "h-5" : "h-7"}`} title={`${rangeLabel} · ${progressPct}% of issues closed`}>
       {/* track (committed span) */}
       <div
-        className="bg-track absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full"
+        className={`bg-track absolute top-1/2 ${barHeight} -translate-y-1/2 rounded-full`}
         style={{ left: `${startPct}%`, width: `${committedWidth}%` }}
       />
       {/* progress fill */}
       <div
-        className="bg-primary absolute top-1/2 h-2.5 -translate-y-1/2 rounded-l-full"
+        className={`bg-primary absolute top-1/2 ${barHeight} -translate-y-1/2 rounded-l-full`}
         style={{
           left: `${startPct}%`,
           width: `${filledWidth}%`,
@@ -79,22 +94,11 @@ export function MilestoneBar({
       {/* overrun hatch (overdue, still open) */}
       {overrunEndPct !== null && overrunEndPct > scheduledEndPct ? (
         <div
-          className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-r-full"
+          className={`absolute top-1/2 ${barHeight} -translate-y-1/2 rounded-r-full`}
           style={{
             left: `${scheduledEndPct}%`,
             width: `${overrunEndPct - scheduledEndPct}%`,
             backgroundImage: OVERRUN_HATCH
-          }}
-        />
-      ) : null}
-      {/* open-ended tail (no due date set) */}
-      {tailEndPct !== null && tailEndPct > scheduledEndPct ? (
-        <div
-          className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-r-full opacity-60"
-          style={{
-            left: `${scheduledEndPct}%`,
-            width: `${tailEndPct - scheduledEndPct}%`,
-            backgroundImage: TAIL_HATCH
           }}
         />
       ) : null}
