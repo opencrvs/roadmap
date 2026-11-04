@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronDownIcon } from "lucide-react"
+import { ChevronDownIcon, ShieldIcon } from "lucide-react"
 import {
   AccordionContent,
   AccordionItem,
@@ -35,7 +35,7 @@ export function MilestoneRow({
       : undefined
 
   return (
-    <AccordionItem value={String(milestone.number)} className="border-b-0">
+    <AccordionItem value={milestone.key} className="border-b-0">
       <AccordionTrigger className="hover:no-underline focus-visible:ring-0 focus-visible:border-transparent focus-visible:after:border-transparent [&>svg]:hidden py-0">
         <div className={cn("grid w-full items-center", compact ? "py-2" : "py-3", GRID_COLS)}>
           <div className="flex min-w-0 flex-col gap-1 pr-2">
@@ -54,6 +54,15 @@ export function MilestoneRow({
               >
                 {milestone.title}
               </a>
+              {milestone.source === "security" ? (
+                <span
+                  className="text-muted-foreground border-border inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
+                  title={`From ${milestone.repo}`}
+                >
+                  <ShieldIcon className="size-3" aria-hidden />
+                  Security
+                </span>
+              ) : null}
               <StatusBadge status={geometry.status} detail={dueDetail} />
             </div>
             <div className="text-muted-foreground flex flex-wrap gap-x-3 text-xs">
