@@ -2,7 +2,7 @@ import Image from "next/image"
 import { AlertTriangleIcon } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Roadmap } from "@/components/roadmap/roadmap"
-import { GitHubApiError, getRepoInfo, getRoadmapData } from "@/lib/github"
+import { GitHubApiError, getRepoInfo, getRoadmapData, getSecurityRepoInfo } from "@/lib/github"
 import { splitReleases } from "@/lib/releases"
 import type { Milestone, ProjectInfo } from "@/lib/types"
 
@@ -10,6 +10,8 @@ export const revalidate = 300
 
 export default async function Home() {
   const { owner, repo } = getRepoInfo()
+  const securityRepo = getSecurityRepoInfo()
+  let securityError: string | null = null
 
   let milestones: Milestone[]
   let project: ProjectInfo = { title: null, url: null, statusOptions: [], error: null }
@@ -18,6 +20,7 @@ export default async function Home() {
     const data = await getRoadmapData()
     milestones = data.milestones
     project = data.project
+    securityError = data.security.error
   } catch (error) {
     loadError =
       error instanceof GitHubApiError
@@ -29,7 +32,9 @@ export default async function Home() {
   const now = new Date()
   const totalOpen = milestones.reduce((sum, m) => sum + m.openIssues, 0)
   const totalClosed = milestones.reduce((sum, m) => sum + m.closedIssues, 0)
-  const { major, hotfix } = splitReleases(milestones)
+  const { major, hotfix, security } = splitReleases(milestones)
+  // Hotfixes and security milestones share one section, ordered together by due date.
+  const maintenance = [...hotfix, ...security]
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8">
@@ -57,8 +62,9 @@ export default async function Home() {
           >
             {owner}/{repo}
           </a>
-          , plotted from six months ago through twelve months ahead. Expand a
-          milestone to see the issues tracked against it.
+          , plus security releases published in the last 30 days, plotted from
+          six months ago through twelve months ahead. Expand a milestone to see
+          the issues tracked against it.
         </p>
       </header>
 
@@ -99,22 +105,28 @@ export default async function Home() {
             </Card>
           </section>
 
-          <section aria-labelledby="hotfix-releases" className="flex flex-col gap-3">
+          <section aria-labelledby="hotfix-security-releases" className="flex flex-col gap-3">
             <SectionHeading
-              id="hotfix-releases"
-              title="Hotfix and maintenance releases"
-              count={hotfix.length}
-              description="Patch releases (X.Y.Z) for versions already in use."
+              id="hotfix-security-releases"
+              title="Hotfix and security releases"
+              count={maintenance.length}
+              description={`Patch releases (X.Y.Z) for versions already in use, and security releases from ${securityRepo.owner}/${securityRepo.repo} published in the last 30 days.`}
             />
             <Card className="py-3 sm:py-4">
               <CardContent className="overflow-x-auto px-4 sm:px-6">
+                {securityError ? (
+                  <p className="text-status-due-soon-fg flex items-start gap-1.5 pb-2 text-sm">
+                    <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+                    {securityError}
+                  </p>
+                ) : null}
                 <Roadmap
-                  milestones={hotfix}
+                  milestones={maintenance}
                   now={now}
                   statusError={project.error}
                   compact
                   showLegend={false}
-                  emptyMessage="There are no open hotfix or maintenance release milestones."
+                  emptyMessage="There are no open hotfix milestones or recent security releases."
                 />
               </CardContent>
             </Card>

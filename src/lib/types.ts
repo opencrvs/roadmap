@@ -3,7 +3,15 @@ export type MilestoneState = "open" | "closed"
 /** Derived from the milestone title: "X.Y" is major, "X.Y.Z" (or deeper) is a hotfix. */
 export type ReleaseType = "major" | "hotfix"
 
+/** Which repository a milestone comes from. */
+export type MilestoneSource = "core" | "security"
+
 export interface Milestone {
+  /** Unique across repositories, e.g. "opencrvs/security#3". Use for React keys. */
+  key: string
+  source: MilestoneSource
+  /** "owner/repo" the milestone belongs to. */
+  repo: string
   number: number
   title: string
   description: string | null
@@ -14,6 +22,11 @@ export interface Milestone {
   createdAt: string
   dueOn: string | null
   htmlUrl: string
+  /**
+   * When a security milestone was published (closed on GitHub). Only set on
+   * security milestones; core milestones are always open and leave it null.
+   */
+  releasedAt: string | null
   /** Issues tracked against this milestone, including their project status. */
   issues: IssueSummary[]
 }
@@ -73,7 +86,16 @@ export interface ProjectInfo {
   error: string | null
 }
 
+export interface RepoInfo {
+  owner: string
+  repo: string
+}
+
 export interface RoadmapData {
   milestones: Milestone[]
   project: ProjectInfo
+  security: RepoInfo & {
+    /** Set when the security repository couldn't be read; core still renders. */
+    error: string | null
+  }
 }

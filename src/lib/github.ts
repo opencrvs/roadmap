@@ -1,17 +1,26 @@
 import { unstable_cache } from "next/cache"
 import { Octokit } from "octokit"
-import { classifyRelease, isReleaseVersion } from "./releases"
+import { classifyRelease, isRecentSecurityRelease, isReleaseVersion } from "./releases"
 import type {
   IssueSummary,
   Milestone,
+  MilestoneSource,
   ProjectInfo,
   ProjectStatus,
   ProjectStatusOption,
+  RepoInfo,
   RoadmapData
 } from "./types"
 
 const OWNER = process.env.GITHUB_REPO_OWNER || "opencrvs"
 const REPO = process.env.GITHUB_REPO_NAME || "opencrvs-core"
+
+/** Private repo whose open milestones are shown in the "Security releases" section. */
+const SECURITY_OWNER = process.env.GITHUB_SECURITY_REPO_OWNER || OWNER
+const SECURITY_REPO = process.env.GITHUB_SECURITY_REPO_NAME || "security"
+
+const CORE: RepoInfo = { owner: OWNER, repo: REPO }
+const SECURITY: RepoInfo = { owner: SECURITY_OWNER, repo: SECURITY_REPO }
 
 const PROJECT_OWNER = process.env.GITHUB_PROJECT_OWNER || OWNER
 const PROJECT_NUMBER = Number(process.env.GITHUB_PROJECT_NUMBER) || 4
@@ -60,6 +69,13 @@ function getClient() {
 export function getRepoInfo() {
   return { owner: OWNER, repo: REPO }
 }
+
+export function getSecurityRepoInfo(): RepoInfo {
+  return SECURITY
+}
+
+const repoSlug = (r: RepoInfo) => `${r.owner}/${r.repo}`
+const issueKey = (r: RepoInfo, number: number) => `${repoSlug(r)}#${number}`
 
 export function isCompletedStatus(status: ProjectStatus | null): boolean {
   return !!status && COMPLETED_STATUS_NAMES.has(status.name.toLowerCase())
@@ -187,9 +203,10 @@ async function getProjectStatusOptions(
  */
 async function getIssueProjectStatuses(
   octokit: Octokit,
+  source: RepoInfo,
   issueNumbers: number[]
-): Promise<Map<number, ProjectStatus>> {
-  const statuses = new Map<number, ProjectStatus>()
+): Promise<Map<string, ProjectStatus>> {
+  const statuses = new Map<string, ProjectStatus>()
   const unique = [...new Set(issueNumbers)]
 
   const batches: number[][] = []
@@ -200,8 +217,8 @@ async function getIssueProjectStatuses(
   const results = await Promise.all(
     batches.map((batch) =>
       graphqlAllowPartial<StatusBatchResult>(octokit, buildStatusBatchQuery(batch), {
-        owner: OWNER,
-        repo: REPO,
+        owner: source.owner,
+        repo: source.repo,
         field: STATUS_FIELD_NAME
       })
     )
@@ -217,7 +234,7 @@ async function getIssueProjectStatuses(
       )
       const value = item?.fieldValueByName
       if (value?.name) {
-        statuses.set(number, {
+        statuses.set(issueKey(source, number), {
           name: value.name,
           optionId: value.optionId ?? null,
           color: value.color ?? "GRAY"
@@ -235,10 +252,14 @@ async function getIssueProjectStatuses(
 
 type RawIssue = Omit<IssueSummary, "projectStatus">
 
-async function listMilestoneIssues(octokit: Octokit, milestoneNumber: number): Promise<RawIssue[]> {
+async function listMilestoneIssues(
+  octokit: Octokit,
+  source: RepoInfo,
+  milestoneNumber: number
+): Promise<RawIssue[]> {
   const issues = await octokit.paginate(octokit.rest.issues.listForRepo, {
-    owner: OWNER,
-    repo: REPO,
+    owner: source.owner,
+    repo: source.repo,
     milestone: String(milestoneNumber),
     state: "all",
     per_page: 100
@@ -272,8 +293,12 @@ function issueTypeName(issue: object): string | null {
   return type?.name ?? null
 }
 
-function withStatus(issue: RawIssue, statuses: Map<number, ProjectStatus>): IssueSummary {
-  const projectStatus = statuses.get(issue.number) ?? null
+function withStatus(
+  issue: RawIssue,
+  source: RepoInfo,
+  statuses: Map<string, ProjectStatus>
+): IssueSummary {
+  const projectStatus = statuses.get(issueKey(source, issue.number)) ?? null
   return {
     ...issue,
     projectStatus,
@@ -290,38 +315,140 @@ function sortIssues(issues: IssueSummary[]): IssueSummary[] {
   })
 }
 
+type RawMilestone = Awaited<ReturnType<typeof listOpenMilestones>>[number]
+
+interface RepoSnapshot {
+  source: MilestoneSource
+  repo: RepoInfo
+  milestones: RawMilestone[]
+  issues: RawIssue[][]
+}
+
+async function listOpenMilestones(octokit: Octokit, repo: RepoInfo) {
+  return octokit.paginate(octokit.rest.issues.listMilestones, {
+    owner: repo.owner,
+    repo: repo.repo,
+    state: "open",
+    sort: "due_on",
+    direction: "asc",
+    per_page: 100
+  })
+}
+
+async function loadRepo(
+  octokit: Octokit,
+  source: MilestoneSource,
+  repo: RepoInfo,
+  include: (title: string) => boolean
+): Promise<RepoSnapshot> {
+  const milestones = (await listOpenMilestones(octokit, repo)).filter((m) => include(m.title))
+  const issues = await Promise.all(
+    milestones.map((m) => listMilestoneIssues(octokit, repo, m.number))
+  )
+  return { source, repo, milestones, issues }
+}
+
+function toMilestones(
+  snapshot: RepoSnapshot,
+  statuses: Map<string, ProjectStatus>
+): Milestone[] {
+  const { source, repo } = snapshot
+  return snapshot.milestones.map((m, index) => {
+    const issues = sortIssues(snapshot.issues[index].map((i) => withStatus(i, repo, statuses)))
+    const closedIssues = issues.filter((i) => i.state === "closed").length
+    return {
+      key: issueKey(repo, m.number),
+      source,
+      repo: repoSlug(repo),
+      number: m.number,
+      title: m.title,
+      description: m.description,
+      state: m.state === "closed" ? "closed" : "open",
+      releaseType: classifyRelease(m.title),
+      openIssues: issues.length - closedIssues,
+      closedIssues,
+      createdAt: m.created_at,
+      dueOn: m.due_on,
+      htmlUrl: m.html_url,
+      releasedAt: null,
+      issues
+    }
+  })
+}
+
+/**
+ * The security repo is private and the roadmap is public, and everything
+ * returned from here is serialized into the page. So only security releases
+ * that were published (milestone closed) in the last 30 days are loaded, and
+ * only their schedule: no description, link, issue counts or issues. Their
+ * issues are never even fetched. Open milestones are upcoming or unreleased
+ * and are never requested.
+ */
+async function loadRecentSecurityReleases(
+  octokit: Octokit,
+  repo: RepoInfo,
+  now: Date
+): Promise<Milestone[]> {
+  const closed = await octokit.paginate(octokit.rest.issues.listMilestones, {
+    owner: repo.owner,
+    repo: repo.repo,
+    state: "closed",
+    per_page: 100
+  })
+  return closed
+    .filter((m) => m.state === "closed" && isRecentSecurityRelease(m.closed_at, now))
+    .map((m) => ({
+      key: issueKey(repo, m.number),
+      source: "security" as const,
+      repo: repoSlug(repo),
+      number: m.number,
+      title: m.title,
+      description: null,
+      state: "closed" as const,
+      releaseType: "hotfix" as const,
+      openIssues: 0,
+      closedIssues: 0,
+      createdAt: m.created_at,
+      dueOn: null,
+      htmlUrl: "",
+      releasedAt: m.closed_at,
+      issues: []
+    }))
+}
+
 async function loadRoadmapData(): Promise<RoadmapData> {
   const octokit = getClient()
 
   try {
-    const allMilestones = await octokit.paginate(octokit.rest.issues.listMilestones, {
-      owner: OWNER,
-      repo: REPO,
-      state: "open",
-      sort: "due_on",
-      direction: "asc",
-      per_page: 100
-    })
-    const releaseMilestones = allMilestones.filter((m) => isReleaseVersion(m.title))
-
-    const issuesByMilestone = await Promise.all(
-      releaseMilestones.map((m) => listMilestoneIssues(octokit, m.number))
-    )
+    // Core is required: if it fails, the page shows the existing error card.
+    // Security is best-effort: the repo is private, so a token without access
+    // only affects the security rows.
+    const [core, securityResult] = await Promise.all([
+      loadRepo(octokit, "core", CORE, isReleaseVersion),
+      loadRecentSecurityReleases(octokit, SECURITY, new Date()).then(
+        (milestones) => ({ milestones, error: null as string | null }),
+        (error) => {
+          console.error(`Failed to load ${repoSlug(SECURITY)} milestones.`, error)
+          return { milestones: [] as Milestone[], error: describeSecurityError(error) }
+        }
+      )
+    ])
 
     // Project statuses are best-effort: if they fail (missing token, missing
     // read:project scope, rate limit) the roadmap still renders and every
     // issue shows "No status" alongside an explanatory notice.
-    let statuses = new Map<number, ProjectStatus>()
+    let statuses = new Map<string, ProjectStatus>()
     let project: ProjectInfo = { title: null, url: null, statusOptions: [], error: null }
     try {
-      const [options, issueStatuses] = await Promise.all([
+      const [options, coreStatuses] = await Promise.all([
         getProjectStatusOptions(octokit),
         getIssueProjectStatuses(
           octokit,
-          issuesByMilestone.flat().map((i) => i.number)
+          core.repo,
+          core.issues.flat().map((i) => i.number)
         )
       ])
-      statuses = issueStatuses
+      statuses = coreStatuses
       project = { ...options, error: null }
     } catch (error) {
       console.error("Failed to load project statuses; showing issues without status.", error)
@@ -331,25 +458,11 @@ async function loadRoadmapData(): Promise<RoadmapData> {
       }
     }
 
-    const milestones: Milestone[] = releaseMilestones.map((m, index) => {
-      const issues = sortIssues(issuesByMilestone[index].map((i) => withStatus(i, statuses)))
-      const closedIssues = issues.filter((i) => i.state === "closed").length
-      return {
-        number: m.number,
-        title: m.title,
-        description: m.description,
-        state: m.state === "closed" ? "closed" : "open",
-        releaseType: classifyRelease(m.title),
-        openIssues: issues.length - closedIssues,
-        closedIssues,
-        createdAt: m.created_at,
-        dueOn: m.due_on,
-        htmlUrl: m.html_url,
-        issues
-      }
-    })
-
-    return { milestones, project }
+    return {
+      milestones: [...toMilestones(core, statuses), ...securityResult.milestones],
+      project,
+      security: { ...SECURITY, error: securityResult.error }
+    }
   } catch (error) {
     throw toGitHubApiError(error)
   }
@@ -362,7 +475,7 @@ async function loadRoadmapData(): Promise<RoadmapData> {
  */
 export const getRoadmapData = unstable_cache(
   loadRoadmapData,
-  ["roadmap-data", OWNER, REPO, PROJECT_OWNER, String(PROJECT_NUMBER), STATUS_FIELD_NAME],
+  ["roadmap-data", OWNER, REPO, SECURITY_OWNER, SECURITY_REPO, PROJECT_OWNER, String(PROJECT_NUMBER), STATUS_FIELD_NAME],
   { revalidate: REVALIDATE_SECONDS, tags: ["roadmap"] }
 )
 
@@ -372,11 +485,26 @@ export async function getOpenMilestones(): Promise<Milestone[]> {
 
 export async function getMilestoneIssues(milestoneNumber: number): Promise<IssueSummary[]> {
   const { milestones } = await getRoadmapData()
-  const milestone = milestones.find((m) => m.number === milestoneNumber)
+  const milestone = milestones.find((m) => m.source === "core" && m.number === milestoneNumber)
   if (!milestone) {
     throw new GitHubApiError(`Milestone ${milestoneNumber} is not an open release milestone.`, 404)
   }
   return milestone.issues
+}
+
+function describeSecurityError(error: unknown): string {
+  const status =
+    error && typeof error === "object" && "status" in error
+      ? (error as { status?: number }).status
+      : undefined
+  const slug = repoSlug(SECURITY)
+  if (status === 403 || status === 429) {
+    return `GitHub rate limit reached while loading ${slug}. It'll reappear on the next refresh.`
+  }
+  if (!process.env.GITHUB_TOKEN || status === 401 || status === 404) {
+    return `Couldn't read ${slug}. It's a private repository, so the GITHUB_TOKEN needs read access to its issues.`
+  }
+  return `Security milestones couldn't be loaded from ${slug}.`
 }
 
 function describeProjectError(error: unknown): string {

@@ -51,7 +51,7 @@ export function Roadmap({
       <Accordion multiple className="divide-border divide-y">
         {sorted.map((milestone) => (
           <MilestoneRow
-            key={milestone.number}
+            key={milestone.key}
             milestone={milestone}
             geometry={computeMilestoneGeometry(milestone, range, now)}
             statusError={statusError}

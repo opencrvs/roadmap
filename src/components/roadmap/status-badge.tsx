@@ -37,6 +37,11 @@ const STATUS_CONFIG: Record<
     label: "Discovery / Planning",
     icon: CompassIcon,
     classes: "bg-status-info-bg text-status-info-fg border-status-info-border"
+  },
+  released: {
+    label: "Released",
+    icon: CheckCircle2Icon,
+    classes: "bg-status-good-bg text-status-good-fg border-status-good-border"
   }
 }
 
