@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache"
 import { Octokit } from "octokit"
-import { classifyRelease, isReleaseVersion } from "./releases"
+import { classifyRelease, isRecentSecurityRelease, isReleaseVersion } from "./releases"
 import type {
   IssueSummary,
   Milestone,
@@ -370,9 +370,50 @@ function toMilestones(
       createdAt: m.created_at,
       dueOn: m.due_on,
       htmlUrl: m.html_url,
+      releasedAt: null,
       issues
     }
   })
+}
+
+/**
+ * The security repo is private and the roadmap is public, and everything
+ * returned from here is serialized into the page. So only security releases
+ * that were published (milestone closed) in the last 30 days are loaded, and
+ * only their schedule: no description, link, issue counts or issues. Their
+ * issues are never even fetched. Open milestones are upcoming or unreleased
+ * and are never requested.
+ */
+async function loadRecentSecurityReleases(
+  octokit: Octokit,
+  repo: RepoInfo,
+  now: Date
+): Promise<Milestone[]> {
+  const closed = await octokit.paginate(octokit.rest.issues.listMilestones, {
+    owner: repo.owner,
+    repo: repo.repo,
+    state: "closed",
+    per_page: 100
+  })
+  return closed
+    .filter((m) => m.state === "closed" && isRecentSecurityRelease(m.closed_at, now))
+    .map((m) => ({
+      key: issueKey(repo, m.number),
+      source: "security" as const,
+      repo: repoSlug(repo),
+      number: m.number,
+      title: m.title,
+      description: null,
+      state: "closed" as const,
+      releaseType: "hotfix" as const,
+      openIssues: 0,
+      closedIssues: 0,
+      createdAt: m.created_at,
+      dueOn: null,
+      htmlUrl: "",
+      releasedAt: m.closed_at,
+      issues: []
+    }))
 }
 
 async function loadRoadmapData(): Promise<RoadmapData> {
@@ -381,19 +422,17 @@ async function loadRoadmapData(): Promise<RoadmapData> {
   try {
     // Core is required: if it fails, the page shows the existing error card.
     // Security is best-effort: the repo is private, so a token without access
-    // only affects the "Security releases" section.
+    // only affects the security rows.
     const [core, securityResult] = await Promise.all([
       loadRepo(octokit, "core", CORE, isReleaseVersion),
-      // Security milestones aren't necessarily named X.Y, so show every open one.
-      loadRepo(octokit, "security", SECURITY, () => true).then(
-        (snapshot) => ({ snapshot, error: null as string | null }),
+      loadRecentSecurityReleases(octokit, SECURITY, new Date()).then(
+        (milestones) => ({ milestones, error: null as string | null }),
         (error) => {
           console.error(`Failed to load ${repoSlug(SECURITY)} milestones.`, error)
-          return { snapshot: null, error: describeSecurityError(error) }
+          return { milestones: [] as Milestone[], error: describeSecurityError(error) }
         }
       )
     ])
-    const snapshots = securityResult.snapshot ? [core, securityResult.snapshot] : [core]
 
     // Project statuses are best-effort: if they fail (missing token, missing
     // read:project scope, rate limit) the roadmap still renders and every
@@ -401,17 +440,15 @@ async function loadRoadmapData(): Promise<RoadmapData> {
     let statuses = new Map<string, ProjectStatus>()
     let project: ProjectInfo = { title: null, url: null, statusOptions: [], error: null }
     try {
-      const [options, ...perRepo] = await Promise.all([
+      const [options, coreStatuses] = await Promise.all([
         getProjectStatusOptions(octokit),
-        ...snapshots.map((snap) =>
-          getIssueProjectStatuses(
-            octokit,
-            snap.repo,
-            snap.issues.flat().map((i) => i.number)
-          )
+        getIssueProjectStatuses(
+          octokit,
+          core.repo,
+          core.issues.flat().map((i) => i.number)
         )
       ])
-      statuses = new Map(perRepo.flatMap((m) => [...m]))
+      statuses = coreStatuses
       project = { ...options, error: null }
     } catch (error) {
       console.error("Failed to load project statuses; showing issues without status.", error)
@@ -422,7 +459,7 @@ async function loadRoadmapData(): Promise<RoadmapData> {
     }
 
     return {
-      milestones: snapshots.flatMap((snap) => toMilestones(snap, statuses)),
+      milestones: [...toMilestones(core, statuses), ...securityResult.milestones],
       project,
       security: { ...SECURITY, error: securityResult.error }
     }

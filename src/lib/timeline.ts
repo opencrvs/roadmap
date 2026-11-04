@@ -10,6 +10,8 @@ export type MilestoneStatus =
   | "all-closed"
   /** No due date or no issues yet: not shown as started. */
   | "planning"
+  /** A published security release (only security milestones carry this). */
+  | "released"
 
 export interface TimelineRange {
   start: Date
@@ -80,6 +82,26 @@ export function computeMilestoneGeometry(
   now: Date
 ): MilestoneGeometry {
   const created = new Date(milestone.createdAt)
+
+  // Published security release: a finished bar from creation to the release
+  // date. Core milestones never set releasedAt, so they skip this branch.
+  if (milestone.releasedAt) {
+    const released = new Date(milestone.releasedAt)
+    const startPct = toPct(created, range)
+    return {
+      status: "released",
+      progressPct: 100,
+      totalIssues: 0,
+      startPct,
+      clampedStart: created.getTime() < range.start.getTime(),
+      scheduledEndPct: Math.min(100, Math.max(toPct(released, range), startPct + MIN_SEGMENT_PCT)),
+      overrunEndPct: null,
+      dueDate: released,
+      duePct: toPct(released, range),
+      daysUntilDue: null
+    }
+  }
+
   const due = milestone.dueOn ? new Date(milestone.dueOn) : null
   const totalIssues = milestone.openIssues + milestone.closedIssues
   const progressPct =

@@ -73,9 +73,13 @@ export function MilestoneBar({
   const isFullyFilled = progressPct >= 100
 
   const rangeLabel = `${formatDate(createdAt)} → ${dueDate ? formatDate(dueDate) : "no due date"}`
+  const barTitle =
+    geometry.status === "released" && dueDate
+      ? `Released ${formatDate(dueDate)}`
+      : `${rangeLabel} · ${progressPct}% of issues closed`
 
   return (
-    <div className={`relative w-full ${compact ? "h-5" : "h-7"}`} title={`${rangeLabel} · ${progressPct}% of issues closed`}>
+    <div className={`relative w-full ${compact ? "h-5" : "h-7"}`} title={barTitle}>
       {/* track (committed span) */}
       <div
         className={`bg-track absolute top-1/2 ${barHeight} -translate-y-1/2 rounded-full`}

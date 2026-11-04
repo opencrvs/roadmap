@@ -22,6 +22,11 @@ export interface Milestone {
   createdAt: string
   dueOn: string | null
   htmlUrl: string
+  /**
+   * When a security milestone was published (closed on GitHub). Only set on
+   * security milestones; core milestones are always open and leave it null.
+   */
+  releasedAt: string | null
   /** Issues tracked against this milestone, including their project status. */
   issues: IssueSummary[]
 }

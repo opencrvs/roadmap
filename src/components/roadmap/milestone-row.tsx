@@ -29,6 +29,7 @@ export function MilestoneRow({
 }) {
   const totalIssues = geometry.totalIssues
   const isPlanning = geometry.status === "planning"
+  const isSecurity = milestone.source === "security"
   const dueDetail =
     geometry.status === "overdue" || geometry.status === "due-soon"
       ? formatRelativeDays(geometry.daysUntilDue ?? 0)
@@ -41,19 +42,30 @@ export function MilestoneRow({
           <div className="flex min-w-0 flex-col gap-1 pr-2">
             <div className="flex flex-wrap items-center gap-2">
               <ChevronDownIcon className="text-muted-foreground group-aria-expanded/accordion-trigger:rotate-180 size-4 shrink-0 transition-transform" />
-              <a
-                href={milestone.htmlUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className={cn(
-                  "text-foreground truncate hover:underline",
-                  compact ? "text-sm font-medium" : "font-semibold"
-                )}
-                title={milestone.title}
-              >
-                {milestone.title}
-              </a>
+              {isSecurity ? (
+                <span
+                  className={cn(
+                    "text-foreground truncate",
+                    compact ? "text-sm font-medium" : "font-semibold"
+                  )}
+                >
+                  {milestone.title}
+                </span>
+              ) : (
+                <a
+                  href={milestone.htmlUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className={cn(
+                    "text-foreground truncate hover:underline",
+                    compact ? "text-sm font-medium" : "font-semibold"
+                  )}
+                  title={milestone.title}
+                >
+                  {milestone.title}
+                </a>
+              )}
               {milestone.source === "security" ? (
                 <span
                   className="text-muted-foreground border-border inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
@@ -66,7 +78,11 @@ export function MilestoneRow({
               <StatusBadge status={geometry.status} detail={dueDetail} />
             </div>
             <div className="text-muted-foreground flex flex-wrap gap-x-3 text-xs">
-              {isPlanning ? (
+              {isSecurity ? (
+                <span>
+                  {milestone.releasedAt ? `Released ${formatDate(milestone.releasedAt)}` : "Released"}
+                </span>
+              ) : isPlanning ? (
                 <>
                   {totalIssues > 0 ? (
                     <span>
@@ -95,12 +111,18 @@ export function MilestoneRow({
       <AccordionContent>
         <div className={`grid ${GRID_COLS}`}>
           <div className="hidden sm:block" />
-          <IssueList
-            issues={milestone.issues}
-            releaseType={milestone.releaseType}
-            isPlanning={isPlanning}
-            statusError={statusError}
-          />
+          {isSecurity ? (
+            <p className="text-muted-foreground py-2 text-sm">
+              Details of security releases are kept private.
+            </p>
+          ) : (
+            <IssueList
+              issues={milestone.issues}
+              releaseType={milestone.releaseType}
+              isPlanning={isPlanning}
+              statusError={statusError}
+            />
+          )}
         </div>
       </AccordionContent>
     </AccordionItem>

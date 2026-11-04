@@ -61,18 +61,10 @@ export default async function Home() {
             className="text-primary hover:underline"
           >
             {owner}/{repo}
-          </a>{" "}
-          and{" "}
-          <a
-            href={`https://github.com/${securityRepo.owner}/${securityRepo.repo}/milestones`}
-            target="_blank"
-            rel="noreferrer"
-            className="text-primary hover:underline"
-          >
-            {securityRepo.owner}/{securityRepo.repo}
           </a>
-          , plotted from six months ago through twelve months ahead. Expand a
-          milestone to see the issues tracked against it.
+          , plus security releases published in the last 30 days, plotted from
+          six months ago through twelve months ahead. Expand a milestone to see
+          the issues tracked against it.
         </p>
       </header>
 
@@ -118,7 +110,7 @@ export default async function Home() {
               id="hotfix-security-releases"
               title="Hotfix and security releases"
               count={maintenance.length}
-              description={`Patch releases (X.Y.Z) for versions already in use, and open milestones from ${securityRepo.owner}/${securityRepo.repo}.`}
+              description={`Patch releases (X.Y.Z) for versions already in use, and security releases from ${securityRepo.owner}/${securityRepo.repo} published in the last 30 days.`}
             />
             <Card className="py-3 sm:py-4">
               <CardContent className="overflow-x-auto px-4 sm:px-6">
@@ -134,7 +126,7 @@ export default async function Home() {
                   statusError={project.error}
                   compact
                   showLegend={false}
-                  emptyMessage="There are no open hotfix or security milestones."
+                  emptyMessage="There are no open hotfix milestones or recent security releases."
                 />
               </CardContent>
             </Card>
